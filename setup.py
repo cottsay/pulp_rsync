@@ -10,7 +10,7 @@ setup(
     author="Scott K Logan",
     author_email="logans@cottsay.net",
     url="https://github.com/cottsay/pulp_rsync",
-    python_requires=">=3.7",
+    python_requires=">=3.6",
     install_requires=[
         "Django~=2.2.19",
         "pulpcore>=3.8",
@@ -23,7 +23,7 @@ setup(
         "Development Status :: 3 - Alpha",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.6",
     ),
     entry_points={
         "console_scripts": [
