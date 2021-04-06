@@ -5,10 +5,10 @@ import socket
 import django
 from django.conf import settings
 
-from .client import RsyncClient
-
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "pulpcore.app.settings")
 django.setup()
+
+from .client import RsyncClient
 
 from pulpcore.app.models import ContentAppStatus
 
