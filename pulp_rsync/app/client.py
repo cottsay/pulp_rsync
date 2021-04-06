@@ -2,6 +2,7 @@ import asyncio
 from enum import IntFlag
 import math
 import os
+from pathlib import PurePath
 import random
 
 from django.conf import settings
@@ -66,6 +67,16 @@ def to_varlong(val, min_bytes):
     else:
         bf = b[cnt]
     return bf.to_bytes(1, byteorder='little', signed=True) + b[:cnt]
+
+
+def should_exclude(filters, path):
+    matchpath = PurePath(path)
+    for mode, pattern in filters:
+        if matchpath.match(pattern):
+            if mode == '+':
+                return False
+            elif mode == '-':
+                return True
 
 
 class RsyncClient:
@@ -198,14 +209,29 @@ class RsyncClient:
 
             await self._start_muxing()
 
-        exclusion_list = await self._reader.readexactly(4)
-        if exclusion_list != b'\x00\x00\x00\x00':
-            await self.send_error('Exclusion lists are not supported')
-            return
+        filters = []
+        filter_len = await self._read_int(4)
+        while filter_len:
+            rule = await self._reader.readexactly(filter_len)
+            rule = rule.decode().lstrip()
+            if rule.startswith('+ ') or rule.startswith('- '):
+                filters.append((rule[0], rule[2:]))
+                if rule[2:].endswith('/'):
+                    # Matching a dir - also match contents
+                    filters.append((rule[0], rule[2:] + '*'))
+                elif not rule[2:].endswith('/*'):
+                    # Might also be a dir (and therefore contents)
+                    filters.append((rule[0], rule[2:] + '/'))
+                    filters.append((rule[0], rule[2:] + '/*'))
+            else:
+                await self.send_error(
+                    "pulp_rsync: Unsupported filter '%s'" % (rule,))
+            filter_len = await self._read_int(4)
 
-        return args
+        return args, filters
 
-    async def send_file_list(self, distro, rel_path, recurse=False):
+    async def send_file_list(self, distro, rel_path,
+                             recurse=False, filters=None):
         publication = getattr(distro, 'publication', None)
         if not publication:
             await self.send_error('Distribution has no publication')
@@ -269,6 +295,8 @@ class RsyncClient:
             FileListFlag.SameUid | FileListFlag.SameGid |
             FileListFlag.ModTimeNsec)
         for dirname, stamp in dirs.items():
+            if filters and should_exclude(filters, dirname + '/'):
+                continue
             if len(dirname) > 255:
                 await self.send_error(
                     'No long path support! Files are missing!')
@@ -288,6 +316,8 @@ class RsyncClient:
             FileListFlag.ExtendedFlags | FileListFlag.SameUid |
             FileListFlag.SameGid | FileListFlag.ModTimeNsec)
         for artname, art in artifacts.items():
+            if filters and should_exclude(filters, artname):
+                continue
             if len(artname) > 255:
                 await self.send_error(
                     'No long path support! Files are missing!')
@@ -352,8 +382,10 @@ class RsyncClient:
             filename = os.path.join(settings.MEDIA_ROOT,
                                     art.content_artifact.artifact.file.name)
             with open(filename, 'rb') as f:
-                # TODO: Chunking
-                buf += f.read()
+                buf += f.read(524265)
+                while len(buf) >= 524288:
+                    await self._write_mux(buf)
+                    buf = f.read(524288)
 
             # Token
             buf += b'\x00\x00\x00\x00'

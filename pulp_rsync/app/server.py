@@ -35,13 +35,13 @@ async def handle_client(reader, writer):
             return
 
         try:
-            # Get arguments
-            args = await client.setup()
+            # Get arguments and filters
+            args, filters = await client.setup()
 
             # Send the file list
             rel_path = args.dst[len(distro.name) + 1:].lstrip('/')
             dirs_and_arts = await client.send_file_list(
-                distro, rel_path, recurse=args.recursive)
+                distro, rel_path, recurse=args.recursive, filters=filters)
             if not dirs_and_arts:
                 return
         except Exception as e:
