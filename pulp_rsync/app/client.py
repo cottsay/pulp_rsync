@@ -342,8 +342,24 @@ class RsyncClient:
         findex = -1
         ndx = await self._reader.readexactly(1)
         while ndx[0]:
+            if ndx[0] == 0xff:
+                await self.send_error(
+                    'pulp_rsync: Negative indexes are not implemented')
+                raise Exception('Got a negative index')
+            elif ndx[0] == 0xfe:
+                ndx += await self._reader.readexactly(2)
+                if ndx[1] & 0x80:
+                    findex = int.from_bytes(
+                        (ndx[2:] +
+                         await self._reader.readexactly(2) +
+                         (ndx[1] & ~0x80).to_bytes(1, byteorder='little')),
+                        byteorder='little')
+                else:
+                    findex += int.from_bytes(ndx[1:], byteorder='big')
+            else:
+                findex += ndx[0]
+
             flags = BlockFlag(await self._read_int(2))
-            findex += ndx[0]
 
             try:
                 flist_entry = flist[findex]
