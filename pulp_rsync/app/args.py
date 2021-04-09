@@ -8,6 +8,7 @@ parser.add_argument('--dirs', '-d', action='store_true')
 parser.add_argument('--recursive', '-r')
 parser.add_argument('--rsh', '-e')
 parser.add_argument('--times', '-t', action='store_true')
+parser.add_argument('--verbose', '-v', action='store_true')
 parser.add_argument('src')
 parser.add_argument('dst')
 
