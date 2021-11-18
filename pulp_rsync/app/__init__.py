@@ -8,4 +8,4 @@ class PulpRsyncPluginAppConfig(PulpPluginAppConfig):
 
     name = "pulp_rsync.app"
     label = "rsync"
-    version = "0.0.2"
+    version = "0.0.3"
