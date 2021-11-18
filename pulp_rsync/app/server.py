@@ -5,12 +5,14 @@ import socket
 import django
 from django.conf import settings
 
+from psycopg2 import OperationalError
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "pulpcore.app.settings")
 django.setup()
 
-from .client import RsyncClient
-
 from pulpcore.app.models import ContentAppStatus
+
+from .client import RsyncClient
 
 
 async def _heartbeat():
@@ -18,10 +20,14 @@ async def _heartbeat():
                                            hostname=socket.gethostname())
     heartbeat_interval = settings.CONTENT_APP_TTL
     while True:
-        content_app_status, created = ContentAppStatus.objects.get_or_create(
-            name=name)
-        if not created:
-            content_app_status.save_heartbeat()
+        try:
+            content_app_stat, created = ContentAppStatus.objects.get_or_create(
+                name=name)
+            if not created:
+                content_app_stat.save_heartbeat()
+        except OperationalError as e:
+            print('Connection to database closed: %s: %s' % (type(e).__name__, e))
+
         await asyncio.sleep(heartbeat_interval)
 
 

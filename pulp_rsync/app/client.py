@@ -1,12 +1,13 @@
 import asyncio
-from enum import IntFlag
 import math
 import os
-from pathlib import PurePath
 import random
+from enum import IntFlag
+from pathlib import PurePath
 
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+
 from pulpcore.app.models import (
     BaseDistribution,
     PublishedArtifact,
